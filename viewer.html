@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>عرض - صيدلية العابد</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', sans-serif; background: linear-gradient(135deg, #1e5799 0%, #2b8c5e 100%); min-height: 100vh; padding: 20px; }
+        .container { max-width: 1400px; margin: 0 auto; }
+        .header { text-align: center; color: white; margin-bottom: 20px; }
+        .header h1 { font-size: 28px; }
+        .card { background: white; border-radius: 15px; padding: 20px; margin-bottom: 20px; box-shadow: 0 5px 15px rgba(0,0,0,0.2); }
+        .card-title { font-size: 20px; font-weight: bold; margin-bottom: 15px; color: #1e5799; border-bottom: 2px solid #2b8c5e; padding-bottom: 8px; }
+        .search-box { display: flex; gap: 10px; margin-bottom: 15px; flex-wrap: wrap; }
+        .search-box input { flex: 1; padding: 10px; border: 1px solid #ddd; border-radius: 8px; }
+        .search-box button { padding: 10px 20px; background: #2b8c5e; color: white; border: none; border-radius: 8px; cursor: pointer; }
+        .stats { background: #e3f2fd; padding: 10px; border-radius: 10px; margin-bottom: 15px; text-align: center; font-weight: bold; }
+        table { width: 100%; border-collapse: collapse; }
+        th { background: #1e5799; color: white; padding: 10px; font-size: 14px; }
+        td { padding: 8px; border-bottom: 1px solid #ddd; text-align: center; font-size: 13px; }
+        .footer { text-align: center; color: white; margin-top: 20px; font-size: 12px; }
+        .empty { text-align: center; padding: 40px; color: #999; }
+        .readonly-badge { background: #ffc107; color: #333; padding: 5px 10px; border-radius: 20px; font-size: 12px; display: inline-block; margin-bottom: 10px; }
+        @media (max-width: 700px) {
+            th, td { font-size: 11px; padding: 5px; }
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="header">
+        <h1>👁️ عرض العملاء - صيدلية العابد</h1>
+        <p>عرض فقط | لا يمكن الإرسال أو التعديل</p>
+    </div>
+
+    <div class="card">
+        <div class="card-title">🔍 بحث سريع</div>
+        <div class="search-box">
+            <input type="text" id="searchId" placeholder="بحث برقم العميل">
+            <input type="text" id="searchName" placeholder="بحث باسم العميل">
+            <button onclick="searchCustomers()">🔍 بحث</button>
+            <button onclick="clearSearch()">🗑️ مسح</button>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-title">👥 العملاء</div>
+        <div class="readonly-badge">🔒 وضع العرض فقط - لا يمكن التعديل أو الإرسال</div>
+        <div class="stats" id="stats">📊 جاري التحميل...</div>
+        <div style="overflow-x: auto;"><div id="customersTable"></div></div>
+    </div>
+    <div class="footer">نظام مرسل الديون | صيدلية العابد | عرض فقط</div>
+</div>
+
+<script>
+    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxVOeHhMBVUf8IyqWA_6Xf7XrZr-hiT4d-VzwrXBOvnUxRlzZ6aNmJ5KdhntSEn3PP_/exec";
+    let customers = [];
+    let searchId = "", searchName = "";
+
+    async function loadData() {
+        try {
+            document.getElementById('stats').innerHTML = '⏳ جاري التحميل...';
+            const response = await fetch(SCRIPT_URL, {
+                method: 'POST',
+                body: JSON.stringify({ action: "load", pharmacyId: 1 }),
+                headers: { 'Content-Type': 'application/json' }
+            });
+            const result = await response.json();
+            if (result.success && result.customers) customers = result.customers;
+            else customers = [];
+            renderTable();
+        } catch(e) { customers = []; renderTable(); }
+    }
+
+    function getFiltered() {
+        let filtered = [...customers];
+        if (searchId) filtered = filtered.filter(c => c.id.toString().includes(searchId));
+        if (searchName) filtered = filtered.filter(c => c.name.includes(searchName));
+        return filtered;
+    }
+
+    function renderTable() {
+        const filtered = getFiltered();
+        if (!filtered.length) {
+            document.getElementById('customersTable').innerHTML = '<div class="empty">📭 لا يوجد عملاء</div>';
+            document.getElementById('stats').innerHTML = `📊 إجمالي: ${customers.length} | معروض: 0`;
+            return;
+        }
+        let html = `<table><thead><tr><th>#</th><th>الاسم</th><th>رقم الجوال</th><th>الرصيد الحالي</th></tr></thead><tbody>`;
+        for (let c of filtered) {
+            html += `<tr>
+                <td>${c.id}</td>
+                <td><strong>${c.name}</strong></td>
+                <td>${c.phone || 'رقم غير مسجل'}</td>
+                <td style="color:#2b8c5e; font-weight:bold;">${(c.totalDebt || 0).toLocaleString()} ريال</td>
+            </tr>`;
+        }
+        html += `</tbody>树`;
+        document.getElementById('customersTable').innerHTML = html;
+        document.getElementById('stats').innerHTML = `📊 إجمالي: ${customers.length} | معروض: ${filtered.length}`;
+    }
+
+    function searchCustomers() {
+        searchId = document.getElementById('searchId').value.trim();
+        searchName = document.getElementById('searchName').value.trim();
+        renderTable();
+    }
+    function clearSearch() {
+        document.getElementById('searchId').value = '';
+        document.getElementById('searchName').value = '';
+        searchId = ""; searchName = "";
+        renderTable();
+    }
+
+    window.searchCustomers = searchCustomers;
+    window.clearSearch = clearSearch;
+
+    loadData();
+</script>
+</body>
+</html>

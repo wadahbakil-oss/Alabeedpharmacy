@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>المدير - صيدلية العابد</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', sans-serif; background: linear-gradient(135deg, #1e5799 0%, #2b8c5e 100%); min-height: 100vh; padding: 20px; }
+        .container { max-width: 1400px; margin: 0 auto; }
+        .header { text-align: center; color: white; margin-bottom: 20px; }
+        .header h1 { font-size: 28px; }
+        .card { background: white; border-radius: 15px; padding: 20px; margin-bottom: 20px; box-shadow: 0 5px 15px rgba(0,0,0,0.2); }
+        .card-title { font-size: 20px; font-weight: bold; margin-bottom: 15px; color: #1e5799; border-bottom: 2px solid #2b8c5e; padding-bottom: 8px; }
+        .search-box { display: flex; gap: 10px; margin-bottom: 15px; flex-wrap: wrap; }
+        .search-box input { flex: 1; padding: 10px; border: 1px solid #ddd; border-radius: 8px; }
+        .search-box button { padding: 10px 20px; background: #2b8c5e; color: white; border: none; border-radius: 8px; cursor: pointer; }
+        .stats { background: #e3f2fd; padding: 10px; border-radius: 10px; margin-bottom: 15px; text-align: center; font-weight: bold; }
+        table { width: 100%; border-collapse: collapse; }
+        th { background: #1e5799; color: white; padding: 10px; font-size: 14px; }
+        td { padding: 8px; border-bottom: 1px solid #ddd; text-align: center; font-size: 13px; }
+        input { padding: 5px; border-radius: 5px; border: 1px solid #ccc; width: 80px; text-align: center; }
+        button { background: #2b8c5e; color: white; border: none; padding: 8px 12px; border-radius: 5px; cursor: pointer; margin: 2px; }
+        .btn-wa { background: #25D366; }
+        .btn-sms { background: #2196F3; }
+        .btn-danger { background: #dc3545; }
+        .btn-group { background: #128C7E; padding: 10px 20px; }
+        .file-input { background: #f0f8ff; padding: 15px; border-radius: 12px; margin-bottom: 15px; border: 2px dashed #2b8c5e; text-align: center; }
+        .button-group { display: flex; gap: 10px; margin-top: 15px; flex-wrap: wrap; }
+        .button-group button { flex: 1; }
+        .footer { text-align: center; color: white; margin-top: 20px; font-size: 12px; }
+        .empty { text-align: center; padding: 40px; color: #999; }
+        @media (max-width: 700px) {
+            th, td { font-size: 11px; padding: 5px; }
+            input { width: 60px; font-size: 10px; }
+            button { padding: 5px 8px; font-size: 11px; }
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="header">
+        <h1>👑 لوحة المدير - صيدلية العابد</h1>
+        <p>تحكم كامل | إضافة - تعديل - حذف - استيراد - تصدير - إرسال للكل</p>
+    </div>
+
+    <div class="card">
+        <div class="card-title">🔍 بحث سريع</div>
+        <div class="search-box">
+            <input type="text" id="searchId" placeholder="بحث برقم العميل">
+            <input type="text" id="searchName" placeholder="بحث باسم العميل">
+            <button onclick="searchCustomers()">🔍 بحث</button>
+            <button onclick="clearSearch()">🗑️ مسح</button>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-title">📂 استيراد البيانات</div>
+        <div class="file-input">
+            <p><strong>📊 استيراد عملاء</strong> (رقم العميل, الاسم, رقم الهاتف, الرصيد)</p>
+            <input type="file" id="importCustomersFile" accept=".csv">
+            <button onclick="importCustomers()" style="background:#6c757d;">📥 استيراد العملاء</button>
+        </div>
+        <div class="file-input">
+            <p><strong>📊 استيراد ديون</strong> (رقم العميل, المبلغ)</p>
+            <input type="file" id="importDebtsFile" accept=".csv">
+            <button onclick="importDebts()" style="background:#6c757d;">📥 استيراد الديون</button>
+        </div>
+        <div id="importStatus"></div>
+    </div>
+
+    <div class="card">
+        <div class="card-title">👥 العملاء</div>
+        <div class="stats" id="stats">📊 جاري التحميل...</div>
+        <div style="overflow-x: auto;"><div id="customersTable"></div></div>
+        <div class="button-group">
+            <button onclick="addCustomer()">➕ إضافة عميل</button>
+            <button onclick="exportToExcel()">📊 تصدير Excel</button>
+            <button class="btn-group" onclick="sendGroupWhatsApp()">📱 إرسال للكل (واتساب)</button>
+            <button class="btn-sms" onclick="sendGroupSMS()">✉️ إرسال للكل (رسائل)</button>
+        </div>
+    </div>
+    <div class="footer">نظام مرسل الديون | صيدلية العابد | صلاحية كاملة</div>
+</div>
+
+<script>
+    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxVOeHhMBVUf8IyqWA_6Xf7XrZr-hiT4d-VzwrXBOvnUxRlzZ6aNmJ5KdhntSEn3PP_/exec";
+    let customers = [];
+    let searchId = "", searchName = "";
+
+    async function loadData() {
+        try {
+            document.getElementById('stats').innerHTML = '⏳ جاري التحميل...';
+            const response = await fetch(SCRIPT_URL, {
+                method: 'POST',
+                body: JSON.stringify({ action: "load", pharmacyId: 1 }),
+                headers: { 'Content-Type': 'application/json' }
+            });
+            const result = await response.json();
+            if (result.success && result.customers) customers = result.customers;
+            else customers = [];
+            renderTable();
+        } catch(e) { customers = []; renderTable(); }
+    }
+
+    async function saveData() {
+        try {
+            await fetch(SCRIPT_URL, {
+                method: 'POST',
+                body: JSON.stringify({ action: "save", pharmacyId: 1, customers: customers }),
+                headers: { 'Content-Type': 'application/json' }
+            });
+        } catch(e) {}
+    }
+
+    function getFiltered() {
+        let filtered = [...customers];
+        if (searchId) filtered = filtered.filter(c => c.id.toString().includes(searchId));
+        if (searchName) filtered = filtered.filter(c => c.name.includes(searchName));
+        return filtered;
+    }
+
+    function renderTable() {
+        const filtered = getFiltered();
+        if (!filtered.length) {
+            document.getElementById('customersTable').innerHTML = '<div class="empty">📭 لا يوجد عملاء</div>';
+            document.getElementById('stats').innerHTML = `📊 إجمالي: ${customers.length} | معروض: 0`;
+            return;
+        }
+        let html = `<table><thead><tr><th>#</th><th>الاسم</th><th>الجوال</th><th>الرصيد</th><th>فاتورة(+)</th><th>سداد(-)</th><th>الرصيد الجديد</th><th>إجراءات</th></tr></thead><tbody>`;
+        for (let c of filtered) {
+            const newTotal = (c.totalDebt || 0) + (c.debt || 0) - (c.paid || 0);
+            html += `<tr>
+                <td>${c.id}</td>
+                <td><strong>${c.name}</strong></td>
+                <td><input type="text" id="phone_${c.id}" value="${c.phone || ''}" style="width:100px"></td>
+                <td><input type="number" id="balance_${c.id}" value="${c.totalDebt || 0}" step="any" style="width:75px"></td>
+                <td><input type="number" id="debt_${c.id}" value="0" step="any" style="width:65px"></td>
+                <td><input type="number" id="paid_${c.id}" value="0" step="any" style="width:65px"></td>
+                <td id="new_${c.id}" style="color:#2b8c5e; font-weight:bold;">${newTotal.toLocaleString()}</td>
+                <td>
+                    <button onclick="updateCustomer(${c.id})">💾 حفظ</button>
+                    <button class="btn-wa" onclick="sendWA(${c.id})">📱</button>
+                    <button class="btn-sms" onclick="sendSMS(${c.id})">✉️</button>
+                    <button class="btn-danger" onclick="deleteCustomer(${c.id})">🗑️ حذف</button>
+                </td>
+            </tr>`;
+        }
+        html += `</tbody>树`;
+        document.getElementById('customersTable').innerHTML = html;
+        document.getElementById('stats').innerHTML = `📊 إجمالي: ${customers.length} | معروض: ${filtered.length}`;
+        for (let c of filtered) {
+            if (document.getElementById(`debt_${c.id}`)) {
+                document.getElementById(`debt_${c.id}`).oninput = () => updateNewTotal(c.id);
+                document.getElementById(`paid_${c.id}`).oninput = () => updateNewTotal(c.id);
+            }
+        }
+    }
+
+    function updateNewTotal(id) {
+        const c = customers.find(c => c.id == id);
+        if (c) {
+            const debt = parseFloat(document.getElementById(`debt_${id}`).value) || 0;
+            const paid = parseFloat(document.getElementById(`paid_${id}`).value) || 0;
+            const newTotal = (c.totalDebt || 0) + debt - paid;
+            document.getElementById(`new_${id}`).innerHTML = newTotal.toLocaleString();
+        }
+    }
+
+    async function updateCustomer(id) {
+        const c = customers.find(c => c.id == id);
+        if (c) {
+            c.phone = document.getElementById(`phone_${id}`).value;
+            c.totalDebt = parseFloat(document.getElementById(`balance_${id}`).value) || 0;
+            const debt = parseFloat(document.getElementById(`debt_${id}`).value) || 0;
+            const paid = parseFloat(document.getElementById(`paid_${id}`).value) || 0;
+            if (debt > 0) c.totalDebt += debt;
+            if (paid > 0) c.totalDebt -= paid;
+            document.getElementById(`debt_${id}`).value = 0;
+            document.getElementById(`paid_${id}`).value = 0;
+            document.getElementById(`balance_${id}`).value = c.totalDebt;
+            await saveData();
+            renderTable();
+            alert(`✅ تم تحديث ${c.name}`);
+        }
+    }
+
+    async function deleteCustomer(id) {
+        if (confirm('هل أنت متأكد من حذف هذا العميل؟')) {
+            customers = customers.filter(c => c.id != id);
+            await saveData();
+            renderTable();
+            alert('✅ تم الحذف');
+        }
+    }
+
+    function sendWA(id) {
+        const c = customers.find(c => c.id == id);
+        if (c && c.phone) {
+            let msg = `السلام عليكم يا ${c.name}، رصيدك الحالي: ${(c.totalDebt || 0).toLocaleString()} ريال\n🏥 صيدلية العابد`;
+            let phone = c.phone.replace(/^0+/, '').replace(/^967/, '').replace(/[^0-9]/g, '');
+            window.open(`https://wa.me/967${phone}?text=${encodeURIComponent(msg)}`, '_blank');
+        } else alert('❌ رقم غير موجود');
+    }
+
+    function sendSMS(id) {
+        const c = customers.find(c => c.id == id);
+        if (c && c.phone) {
+            let msg = `السلام عليكم يا ${c.name}، رصيدك: ${(c.totalDebt || 0).toLocaleString()} ريال - صيدلية العابد`;
+            let phone = c.phone.replace(/^0+/, '').replace(/^967/, '').replace(/[^0-9]/g, '');
+            window.location.href = `sms:+967${phone}?body=${encodeURIComponent(msg)}`;
+        } else alert('❌ رقم غير موجود');
+    }
+
+    async function sendGroupWhatsApp() {
+        let targets = customers.filter(c => c.phone && c.phone.length >= 9);
+        if (!targets.length) { alert('❌ لا توجد أرقام'); return; }
+        for (let i = 0; i < targets.length; i++) {
+            const c = targets[i];
+            let msg = `السلام عليكم يا ${c.name}، رصيدك الحالي: ${(c.totalDebt || 0).toLocaleString()} ريال\n🏥 صيدلية العابد`;
+            let phone = c.phone.replace(/^0+/, '').replace(/^967/, '').replace(/[^0-9]/g, '');
+            window.open(`https://wa.me/967${phone}?text=${encodeURIComponent(msg)}`, '_blank');
+            if (i < targets.length - 1) await new Promise(resolve => { alert(`✅ تم لـ ${c.name}\nاضغط OK للمتابعة`); resolve(); });
+        }
+        alert('✅ تم إرسال الجميع');
+    }
+
+    async function sendGroupSMS() {
+        let targets = customers.filter(c => c.phone && c.phone.length >= 9);
+        if (!targets.length) { alert('❌ لا توجد أرقام'); return; }
+        for (let i = 0; i < targets.length; i++) {
+            const c = targets[i];
+            let msg = `السلام عليكم يا ${c.name}، رصيدك: ${(c.totalDebt || 0).toLocaleString()} ريال - صيدلية العابد`;
+            let phone = c.phone.replace(/^0+/, '').replace(/^967/, '').replace(/[^0-9]/g, '');
+            window.location.href = `sms:+967${phone}?body=${encodeURIComponent(msg)}`;
+            if (i < targets.length - 1) await new Promise(resolve => { alert(`✅ تم لـ ${c.name}\nاضغط OK للمتابعة`); resolve(); });
+        }
+        alert('✅ تم إرسال الجميع');
+    }
+
+    async function addCustomer() {
+        let name = prompt('📝 اسم العميل:');
+        if (!name) return;
+        let phone = prompt('📞 رقم الهاتف:');
+        if (!phone) return;
+        let id = Date.now();
+        customers.push({ id, name, phone: phone.replace(/[^0-9]/g, ''), totalDebt: 0, debt: 0, paid: 0 });
+        await saveData();
+        renderTable();
+        alert('✅ تم الإضافة');
+    }
+
+    async function importCustomers() {
+        const file = document.getElementById('importCustomersFile').files[0];
+        if (!file) { alert('❌ اختر ملف'); return; }
+        const reader = new FileReader();
+        reader.onload = async function(e) {
+            const lines = e.target.result.split('\n');
+            let imported = 0;
+            for (let line of lines) {
+                const parts = line.trim().split(',');
+                if (parts.length >= 4 && parts[0] && parts[1]) {
+                    const id = parseInt(parts[0]);
+                    if (!customers.find(c => c.id === id)) {
+                        customers.push({ id, name: parts[1].trim(), phone: parts[2].trim().replace(/[^0-9]/g, ''), totalDebt: parseFloat(parts[3]) || 0, debt: 0, paid: 0 });
+                        imported++;
+                    }
+                }
+            }
+            await saveData();
+            renderTable();
+            alert(`✅ تم استيراد ${imported} عميل`);
+        };
+        reader.readAsText(file, 'UTF-8');
+    }
+
+    async function importDebts() {
+        const file = document.getElementById('importDebtsFile').files[0];
+        if (!file) { alert('❌ اختر ملف'); return; }
+        const reader = new FileReader();
+        reader.onload = async function(e) {
+            const lines = e.target.result.split('\n');
+            let imported = 0;
+            for (let line of lines) {
+                const parts = line.trim().split(',');
+                if (parts.length >= 2) {
+                    const id = parseInt(parts[0]);
+                    const amount = parseFloat(parts[1]);
+                    const customer = customers.find(c => c.id === id);
+                    if (customer && !isNaN(amount)) {
+                        if (amount > 0) customer.debt = (customer.debt || 0) + amount;
+                        else if (amount < 0) customer.paid = (customer.paid || 0) + Math.abs(amount);
+                        imported++;
+                    }
+                }
+            }
+            await saveData();
+            renderTable();
+            alert(`✅ تم استيراد ${imported} حركة`);
+        };
+        reader.readAsText(file, 'UTF-8');
+    }
+
+    function exportToExcel() {
+        if (!customers.length) { alert('لا توجد بيانات'); return; }
+        let csv = "رقم العميل,اسم العميل,رقم الهاتف,الرصيد الحالي\n";
+        for (let c of customers) csv += `"${c.id}","${c.name}","${c.phone}","${c.totalDebt}"\n`;
+        const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8" });
+        const a = document.createElement("a");
+        a.href = URL.createObjectURL(blob);
+        a.download = `customers_${new Date().toISOString().slice(0,19)}.csv`;
+        a.click();
+        URL.revokeObjectURL(blob);
+    }
+
+    function searchCustomers() {
+        searchId = document.getElementById('searchId').value.trim();
+        searchName = document.getElementById('searchName').value.trim();
+        renderTable();
+    }
+    function clearSearch() {
+        document.getElementById('searchId').value = '';
+        document.getElementById('searchName').value = '';
+        searchId = ""; searchName = "";
+        renderTable();
+    }
+
+    window.updateCustomer = updateCustomer;
+    window.sendWA = sendWA;
+    window.sendSMS = sendSMS;
+    window.deleteCustomer = deleteCustomer;
+    window.addCustomer = addCustomer;
+    window.sendGroupWhatsApp = sendGroupWhatsApp;
+    window.sendGroupSMS = sendGroupSMS;
+    window.exportToExcel = exportToExcel;
+    window.searchCustomers = searchCustomers;
+    window.clearSearch = clearSearch;
+    window.importCustomers = importCustomers;
+    window.importDebts = importDebts;
+
+    loadData();
+</script>
+</body>
+</html>
