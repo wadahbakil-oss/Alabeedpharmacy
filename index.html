@@ -75,7 +75,7 @@
         </div>
         <div id="cloudMsg" style="text-align: center; margin-top: 10px; font-weight: bold;"></div>
     </div>
-https://alabeed-pharmacy-default-rtdb.firebaseio.com/
+
     <div class="card">
         <div class="card-title">👥 العملاء</div>
         <div class="stats" id="stats">📊 جاري التحميل...</div>
@@ -91,9 +91,8 @@ https://alabeed-pharmacy-default-rtdb.firebaseio.com/
 </div>
 
 <script>
-    // ========== ⚠️ ضع رابط الفايربيس الخاص بك هنا بدلاً من الرابط التجريبي بالأسفل ⚠️ ==========
-    // تأكد من ترك الكلمة "/customers.json" في نهاية الرابط كما هي
-    const FIREBASE_URL = "https://ضع_رابط_قاعدة_بياناتك_هنا/customers.json";
+    // ========== تم ربط الرابط الجديد بنجاح هنا ==========
+    const FIREBASE_URL = "https://alabeed-pharmacy-default-rtdb.firebaseio.com/customers.json";
     
     let customers = [];
     let searchId = "", searchName = "";
@@ -131,12 +130,11 @@ https://alabeed-pharmacy-default-rtdb.firebaseio.com/
         return false;
     }
 
-    // ========== التخزين السحابي الجديد عبر Firebase المضمون ==========
+    // ========== التخزين السحابي الجديد عبر Firebase ==========
     async function saveToCloudNow() {
         try {
             document.getElementById('cloudMsg').innerHTML = '⏳ جاري الرفع المباشر للسحابة...';
             
-            // استخدام طريقة PUT لاستبدال البيانات بالكامل بمرونة وحرية أمان كاملة للمتصفحات
             const response = await fetch(FIREBASE_URL, {
                 method: 'PUT',
                 body: JSON.stringify(customers),
@@ -163,7 +161,6 @@ https://alabeed-pharmacy-default-rtdb.firebaseio.com/
             const data = await response.json();
             
             if (data) {
-                // الفايربيس قد يعيد مصفوفة بها قيم فارغة أحياناً، نقوم بتصفيتها لضمان الأداء
                 customers = Array.isArray(data) ? data.filter(item => item !== null) : Object.values(data);
                 saveToLocal();
                 renderTable();
