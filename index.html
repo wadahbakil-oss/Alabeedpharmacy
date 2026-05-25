@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>المدير - صيدلية العابد</title>
+    <title>المدير - صيدلية العابد السحابي</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: 'Segoe UI', sans-serif; background: linear-gradient(135deg, #1e5799 0%, #2b8c5e 100%); min-height: 100vh; padding: 20px; }
@@ -15,7 +15,6 @@
         .search-box { display: flex; gap: 10px; margin-bottom: 15px; flex-wrap: wrap; }
         .search-box input { flex: 1; padding: 10px; border: 1px solid #ddd; border-radius: 8px; }
         .search-box button { padding: 10px 20px; background: #2b8c5e; color: white; border: none; border-radius: 8px; cursor: pointer; }
-        .search-box button:hover { background: #216d48; }
         .filter-buttons { display: flex; gap: 10px; margin-bottom: 15px; flex-wrap: wrap; }
         .filter-buttons button { flex: 1; padding: 10px; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; }
         .stats { background: #e3f2fd; padding: 10px; border-radius: 10px; margin-bottom: 15px; text-align: center; font-weight: bold; }
@@ -45,8 +44,8 @@
 <body>
 <div class="container">
     <div class="header">
-        <h1>👑 لوحة المدير - صيدلية العابد</h1>
-        <p>تحكم كامل | حفظ محلي + سحابي</p>
+        <h1>👑 لوحة المدير السحابية - صيدلية العابد</h1>
+        <p>نظام Firebase المباشر | يعمل من أي جهاز وعبر Netlify بدون قيود</p>
     </div>
 
     <div class="card">
@@ -68,15 +67,15 @@
     </div>
 
     <div class="card">
-        <div class="card-title">☁️ التخزين</div>
-        <div class="sync-status" id="syncStatus">✅ البيانات محفوظة محلياً</div>
+        <div class="card-title">☁️ التخزين السحابي المباشر (Firebase)</div>
+        <div class="sync-status" id="syncStatus">✅ متصل بقاعدة البيانات المحلية</div>
         <div class="button-group">
             <button class="btn-save-cloud" onclick="saveToCloudNow()">☁️ حفظ البيانات في السحابة الآن</button>
             <button onclick="loadFromCloudNow()">📥 استرجاع من السحابة</button>
         </div>
         <div id="cloudMsg" style="text-align: center; margin-top: 10px; font-weight: bold;"></div>
     </div>
-
+https://alabeed-pharmacy-default-rtdb.firebaseio.com/
     <div class="card">
         <div class="card-title">👥 العملاء</div>
         <div class="stats" id="stats">📊 جاري التحميل...</div>
@@ -88,12 +87,13 @@
             <button class="btn-sms" onclick="sendGroupSMS()">✉️ إرسال للكل (رسائل)</button>
         </div>
     </div>
-    <div class="footer">نظام مرسل الديون | صيدلية العابد | حفظ محلي + سحابي</div>
+    <div class="footer">نظام صيدلية العابد السحابي المتكامل</div>
 </div>
 
 <script>
-    // ========== الرابط الجديد المعدل بعد التحديث ==========
-    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyKz_2r2uFwkn8oSSF9sKcM14if_M2xnoLHuxowBmXhAjNxXo8rIiYQ0Ys4MYpXOjAL/exec";
+    // ========== ⚠️ ضع رابط الفايربيس الخاص بك هنا بدلاً من الرابط التجريبي بالأسفل ⚠️ ==========
+    // تأكد من ترك الكلمة "/customers.json" في نهاية الرابط كما هي
+    const FIREBASE_URL = "https://ضع_رابط_قاعدة_بياناتك_هنا/customers.json";
     
     let customers = [];
     let searchId = "", searchName = "";
@@ -131,29 +131,25 @@
         return false;
     }
 
-    // ========== التخزين السحابي المطور لتفادي الـ CORS الخطأ ==========
+    // ========== التخزين السحابي الجديد عبر Firebase المضمون ==========
     async function saveToCloudNow() {
         try {
-            document.getElementById('cloudMsg').innerHTML = '⏳ جاري الحفظ في السحابة...';
+            document.getElementById('cloudMsg').innerHTML = '⏳ جاري الرفع المباشر للسحابة...';
             
-            const formData = new URLSearchParams();
-            formData.append('action', 'save');
-            formData.append('customers', JSON.stringify(customers));
-
-            const response = await fetch(SCRIPT_URL, {
-                method: 'POST',
-                body: formData,
-                headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
+            // استخدام طريقة PUT لاستبدال البيانات بالكامل بمرونة وحرية أمان كاملة للمتصفحات
+            const response = await fetch(FIREBASE_URL, {
+                method: 'PUT',
+                body: JSON.stringify(customers),
+                headers: { 'Content-Type': 'application/json' }
             });
             
-            const result = await response.json();
-            if (result.success) {
-                document.getElementById('cloudMsg').innerHTML = '<span style="color: #2b8c5e;">✅ تم الحفظ في السحابة بنجاح!</span>';
+            if (response.ok) {
+                document.getElementById('cloudMsg').innerHTML = '<span style="color: #2b8c5e;">✅ تم الحفظ السحابي بنجاح تام!</span>';
             } else {
-                document.getElementById('cloudMsg').innerHTML = '<span style="color: #dc3545;">❌ فشل الحفظ: ' + (result.error || '') + '</span>';
+                document.getElementById('cloudMsg').innerHTML = '<span style="color: #dc3545;">❌ فشل في معالجة الحفظ</span>';
             }
         } catch(e) {
-            document.getElementById('cloudMsg').innerHTML = '<span style="color: #dc3545;">❌ خطأ في الاتصال بالخادم السحابي</span>';
+            document.getElementById('cloudMsg').innerHTML = '<span style="color: #dc3545;">❌ خطأ في الاتصال بالسحابة</span>';
             console.error(e);
         }
         setTimeout(() => document.getElementById('cloudMsg').innerHTML = '', 5000);
@@ -161,28 +157,22 @@
 
     async function loadFromCloudNow() {
         try {
-            document.getElementById('syncStatus').innerHTML = '⏳ جاري التحميل من السحابة...';
+            document.getElementById('syncStatus').innerHTML = '⏳ جاري التحميل الفوري من السحابة...';
             
-            const formData = new URLSearchParams();
-            formData.append('action', 'load');
-
-            const response = await fetch(SCRIPT_URL, {
-                method: 'POST',
-                body: formData,
-                headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
-            });
+            const response = await fetch(FIREBASE_URL);
+            const data = await response.json();
             
-            const result = await response.json();
-            if (result.success && result.customers) {
-                customers = result.customers;
+            if (data) {
+                // الفايربيس قد يعيد مصفوفة بها قيم فارغة أحياناً، نقوم بتصفيتها لضمان الأداء
+                customers = Array.isArray(data) ? data.filter(item => item !== null) : Object.values(data);
                 saveToLocal();
                 renderTable();
-                document.getElementById('syncStatus').innerHTML = '✅ تم تحديث وتحميل البيانات من السحابة';
+                document.getElementById('syncStatus').innerHTML = '✅ تم مزامنة وتحميل البيانات السحابية';
             } else {
-                document.getElementById('syncStatus').innerHTML = '⚠️ لا توجد بيانات مسجلة في السحابة';
+                document.getElementById('syncStatus').innerHTML = '⚠️ السحابة فارغة، لا توجد بيانات محفوظة بعد';
             }
         } catch(e) {
-            document.getElementById('syncStatus').innerHTML = '⚠️ فشل الاتصال، تم عرض البيانات المحلية المتاحة';
+            document.getElementById('syncStatus').innerHTML = '⚠️ فشل جلب البيانات من السحابة';
             console.error(e);
         }
     }
@@ -216,11 +206,11 @@
         return filtered;
     }
 
-    // ========== عرض الجدول (تم تعديل الخطأ الإملائي هنا) ==========
+    // ========== عرض الجدول ==========
     function renderTable() {
         const filtered = getFilteredCustomers();
         if (!filtered.length) {
-            document.getElementById('customersTable').innerHTML = '<div class="empty">📭 لا يوجد عملاء مطابِقين للبحث</div>';
+            document.getElementById('customersTable').innerHTML = '<div class="empty">📭 لا يوجد عملاء</div>';
             document.getElementById('stats').innerHTML = `📊 إجمالي: ${customers.length} | معروض: 0 | 🔴 حركة اليوم: ${customers.filter(c => (c.debt||0)>0 || (c.paid||0)>0).length}`;
             return;
         }
@@ -244,7 +234,7 @@
                 </td>
             </tr>`;
         }
-        html += `</tbody></table>`; // تم تصحيح حرف (树) إلى وسم الإغلاق الصحيح للجدول هنا
+        html += `</tbody></table>`;
         document.getElementById('customersTable').innerHTML = html;
         document.getElementById('stats').innerHTML = `📊 إجمالي: ${customers.length} | معروض: ${filtered.length} | 🔴 حركة اليوم: ${customers.filter(c => (c.debt||0)>0 || (c.paid||0)>0).length}`;
         
@@ -290,23 +280,23 @@
             
             saveToLocal();
             renderTable();
-            alert(`✅ تم تحديث بيانات العميل: ${c.name}`);
+            alert(`✅ تم حفظ تعديل العميل: ${c.name}`);
         }
     }
 
     async function deleteCustomer(id) {
-        if (confirm('هل أنت متأكد من حذف هذا العميل نهائياً من القائمة المحلية؟')) {
+        if (confirm('هل أنت متأكد من حذف هذا العميل؟')) {
             customers = customers.filter(c => c.id != id);
             saveToLocal();
             renderTable();
-            alert('✅ تم الحذف محلياً (اضغط حفظ السحابة لاعتماد الحذف هناك)');
+            alert('✅ تم الحذف محلياً');
         }
     }
 
     // ========== الإرسال ==========
     function sendWA(id) {
         const c = customers.find(c => c.id == id);
-        if (!c || !c.phone) { alert('❌ رقم الهاتف غير موجود لهذا العميل'); return; }
+        if (!c || !c.phone) { alert('❌ رقم غير موجود'); return; }
         
         let msg = "";
         const newTotal = (c.totalDebt || 0) + (c.debt || 0) - (c.paid || 0);
@@ -323,7 +313,7 @@
 
     function sendSMS(id) {
         const c = customers.find(c => c.id == id);
-        if (!c || !c.phone) { alert('❌ رقم الهاتف غير موجود لهذا العميل'); return; }
+        if (!c || !c.phone) { alert('❌ رقم غير موجود'); return; }
         
         let msg = "";
         const newTotal = (c.totalDebt || 0) + (c.debt || 0) - (c.paid || 0);
@@ -342,7 +332,7 @@
     async function sendGroupWhatsApp() {
         let targets = customers.filter(c => c.phone && c.phone.length >= 9 && ((c.debt || 0) > 0 || (c.paid || 0) > 0));
         if (!targets.length) {
-            alert('❌ لا يوجد عملاء لديهم حركة مالية مسجلة اليوم للإرسال لهم');
+            alert('❌ لا يوجد عملاء لديهم حركة يومية');
             return;
         }
         for (let i = 0; i < targets.length; i++) {
@@ -353,18 +343,18 @@
             window.open(`https://wa.me/967${phone}?text=${encodeURIComponent(msg)}`, '_blank');
             if (i < targets.length - 1) {
                 await new Promise(resolve => {
-                    alert(`✅ تم فتح محادثة لـ ${c.name}\nاضغط (موافق/OK) لفتح العميل التالي تلقائياً`);
+                    alert(`✅ تم فتح محادثة العميل ${c.name}\nاضغط OK للانتقال للتالي`);
                     resolve();
                 });
             }
         }
-        alert('✅ تم الانتهاء من فتح روابط الإرسال لجميع العملاء المستهدفين');
+        alert('✅ تم الانتهاء');
     }
 
     async function sendGroupSMS() {
         let targets = customers.filter(c => c.phone && c.phone.length >= 9 && ((c.debt || 0) > 0 || (c.paid || 0) > 0));
         if (!targets.length) {
-            alert('❌ لا يوجد عملاء لديهم حركة مالية مسجلة اليوم للإرسال لهم');
+            alert('❌ لا يوجد عملاء لديهم حركة يومية');
             return;
         }
         for (let i = 0; i < targets.length; i++) {
@@ -375,19 +365,19 @@
             window.location.href = `sms:+967${phone}?body=${encodeURIComponent(msg)}`;
             if (i < targets.length - 1) {
                 await new Promise(resolve => {
-                    alert(`✅ تم تجهيز الرسالة النصية لـ ${c.name}\nاضغط (موافق/OK) للعميل التالي`);
+                    alert(`✅ تم إرسال رسالة لـ ${c.name}\nاضغط OK للعميل التالي`);
                     resolve();
                 });
             }
         }
-        alert('✅ تم الانتهاء من إرسال الرسائل لجميع العملاء');
+        alert('✅ تم إرسال الرسائل');
     }
 
     // ========== إدارة العملاء ==========
     async function addCustomer() {
-        let name = prompt('📝 اسم العميل الجديد:');
+        let name = prompt('📝 اسم العميل:');
         if (!name) return;
-        let phone = prompt('📞 رقم هاتف العميل (يفضل 9 أرقام بدون مفتاح الدولة):');
+        let phone = prompt('📞 رقم الهاتف:');
         if (!phone) return;
         let id = Date.now();
         customers.push({ 
@@ -400,11 +390,11 @@
         });
         saveToLocal();
         renderTable();
-        alert('✅ تم إضافة العميل بنجاح للقائمة المؤقتة');
+        alert('✅ تم إضافة العميل محلياً');
     }
 
     function exportToExcel() {
-        if (!customers.length) { alert('لا توجد بيانات لتصديرها'); return; }
+        if (!customers.length) { alert('لا توجد بيانات'); return; }
         let csv = "رقم العميل,اسم العميل,رقم الهاتف,الرصيد الحالي,فاتورة جديدة,سداد\n";
         for (let c of customers) {
             csv += `"${c.id}","${c.name}","${c.phone}","${c.totalDebt}","${c.debt || 0}","${c.paid || 0}"\n`;
@@ -412,7 +402,7 @@
         const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8" });
         const a = document.createElement("a");
         a.href = URL.createObjectURL(blob);
-        a.download = `صيدلية_العابد_الديون_${new Date().toISOString().slice(0,10)}.csv`;
+        a.download = `تقرير_صيدلية_العابد_${new Date().toISOString().slice(0,10)}.csv`;
         a.click();
         URL.revokeObjectURL(blob);
     }
@@ -430,7 +420,7 @@
         renderTable();
     }
 
-    // ========== ربط الدوال بالنظام العالمي للعمل بالصفحة ==========
+    // ========== ربط الدوال بالنظام ==========
     window.updateCustomer = updateCustomer;
     window.sendWA = sendWA;
     window.sendSMS = sendSMS;
