@@ -15,7 +15,10 @@
         .search-box { display: flex; gap: 10px; margin-bottom: 15px; flex-wrap: wrap; }
         .search-box input { flex: 1; padding: 10px; border: 1px solid #ddd; border-radius: 8px; }
         .search-box button { padding: 10px 20px; background: #2b8c5e; color: white; border: none; border-radius: 8px; cursor: pointer; }
+        .filter-buttons { display: flex; gap: 10px; margin-bottom: 15px; flex-wrap: wrap; }
+        .filter-buttons button { flex: 1; padding: 10px; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; }
         .stats { background: #e3f2fd; padding: 10px; border-radius: 10px; margin-bottom: 15px; text-align: center; font-weight: bold; }
+        .sync-status { background: #fff3cd; padding: 8px; border-radius: 8px; margin-bottom: 10px; text-align: center; font-size: 12px; }
         table { width: 100%; border-collapse: collapse; }
         th { background: #1e5799; color: white; padding: 10px; font-size: 14px; }
         td { padding: 8px; border-bottom: 1px solid #ddd; text-align: center; font-size: 13px; }
@@ -24,12 +27,14 @@
         .btn-wa { background: #25D366; }
         .btn-sms { background: #2196F3; }
         .btn-danger { background: #dc3545; }
+        .btn-save-cloud { background: #17a2b8; }
         .btn-group { background: #128C7E; padding: 10px 20px; }
         .file-input { background: #f0f8ff; padding: 15px; border-radius: 12px; margin-bottom: 15px; border: 2px dashed #2b8c5e; text-align: center; }
         .button-group { display: flex; gap: 10px; margin-top: 15px; flex-wrap: wrap; }
         .button-group button { flex: 1; }
         .footer { text-align: center; color: white; margin-top: 20px; font-size: 12px; }
         .empty { text-align: center; padding: 40px; color: #999; }
+        .highlight-row { background: #fff8e1; }
         @media (max-width: 700px) {
             th, td { font-size: 11px; padding: 5px; }
             input { width: 60px; font-size: 10px; }
@@ -41,7 +46,7 @@
 <div class="container">
     <div class="header">
         <h1>👑 لوحة المدير - صيدلية العابد</h1>
-        <p>تحكم كامل | إضافة - تعديل - حذف - استيراد - تصدير - إرسال للكل</p>
+        <p>تحكم كامل | حفظ محلي + سحابي</p>
     </div>
 
     <div class="card">
@@ -52,6 +57,24 @@
             <button onclick="searchCustomers()">🔍 بحث</button>
             <button onclick="clearSearch()">🗑️ مسح</button>
         </div>
+    </div>
+
+    <div class="card">
+        <div class="card-title">📊 الفلترة</div>
+        <div class="filter-buttons">
+            <button id="showAllBtn" onclick="setFilter('all')" style="background:#2b8c5e; color:white;">👥 عرض جميع العملاء</button>
+            <button id="showMovementBtn" onclick="setFilter('movement')" style="background:#FF9800; color:white;">📊 عملاء الحركة اليومية فقط</button>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-title">☁️ التخزين</div>
+        <div class="sync-status" id="syncStatus">✅ البيانات محفوظة محلياً</div>
+        <div class="button-group">
+            <button class="btn-save-cloud" onclick="saveToCloudNow()">☁️ حفظ البيانات في السحابة الآن</button>
+            <button onclick="loadFromCloudNow()">📥 استرجاع من السحابة</button>
+        </div>
+        <div id="cloudMsg"></div>
     </div>
 
     <div class="card">
@@ -80,48 +103,127 @@
             <button class="btn-sms" onclick="sendGroupSMS()">✉️ إرسال للكل (رسائل)</button>
         </div>
     </div>
-    <div class="footer">نظام مرسل الديون | صيدلية العابد | صلاحية كاملة</div>
+    <div class="footer">نظام مرسل الديون | صيدلية العابد | حفظ محلي + سحابي</div>
 </div>
 
 <script>
-    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxVOeHhMBVUf8IyqWA_6Xf7XrZr-hiT4d-VzwrXBOvnUxRlzZ6aNmJ5KdhntSEn3PP_/exec";
+    const SCRIPT_URL = "https://script.google.com/macros/s/رابطك/exec";
     let customers = [];
     let searchId = "", searchName = "";
+    let currentFilter = "all"; // all or movement
 
-    async function loadData() {
+    // ========== الرسائل المعدلة ==========
+    function getMovementMessage(customer, newTotal) {
+        if (customer.debt > 0 && customer.paid > 0) {
+            return `الاخ ${customer.name}، نود اعلامكم بان تم تقيد مبلغ ${customer.debt.toLocaleString()} ريال (فاتورة جديدة) وتم استلام مبلغ ${customer.paid.toLocaleString()} ريال (سداد) ليصبح اجمالي الرصيد عليكم ${newTotal.toLocaleString()} ريال.\n\nيرجى السداد بداية ونهاية كل شهر\n\n🏥 صيدلية العابد\nتعز - الحوبان - مدخل البريد\n📞 770066128`;
+        } else if (customer.debt > 0) {
+            return `الاخ ${customer.name}، نود اعلامكم بان تم تقيد مبلغ ${customer.debt.toLocaleString()} ريال (فاتورة جديدة) ليصبح اجمالي الرصيد عليكم ${newTotal.toLocaleString()} ريال.\n\nيرجى السداد بداية ونهاية كل شهر\n\n🏥 صيدلية العابد\nتعز - الحوبان - مدخل البريد\n📞 770066128`;
+        } else if (customer.paid > 0) {
+            return `الاخ ${customer.name}، نود اعلامكم بان تم استلام مبلغ ${customer.paid.toLocaleString()} ريال (سداد) ليصبح اجمالي الرصيد عليكم ${newTotal.toLocaleString()} ريال.\n\nيرجى السداد بداية ونهاية كل شهر\n\n🏥 صيدلية العابد\nتعز - الحوبان - مدخل البريد\n📞 770066128`;
+        }
+        return "";
+    }
+
+    function getReminderMessage(customer) {
+        return `سلام الله عليكم يا ${customer.name}، لو سمحت ممكن تسديد الحساب نهاية شهر وبداية الشهر، الصيدلية صيدليتك بأي وقت.\nحسابك: ${(customer.totalDebt || 0).toLocaleString()} ريال\nصيدلية العابد`;
+    }
+
+    // ========== التخزين المحلي ==========
+    function saveToLocal() {
+        localStorage.setItem('pharmacy_customers', JSON.stringify(customers));
+        localStorage.setItem('pharmacy_last_backup', new Date().toISOString());
+        document.getElementById('syncStatus').innerHTML = '✅ البيانات محفوظة محلياً - آخر حفظ: ' + new Date().toLocaleTimeString();
+    }
+
+    function loadFromLocal() {
+        const saved = localStorage.getItem('pharmacy_customers');
+        if (saved) {
+            customers = JSON.parse(saved);
+            renderTable();
+            document.getElementById('syncStatus').innerHTML = '📀 تم التحميل من النسخة المحلية';
+            return true;
+        }
+        return false;
+    }
+
+    // ========== التخزين السحابي ==========
+    async function saveToCloudNow() {
         try {
-            document.getElementById('stats').innerHTML = '⏳ جاري التحميل...';
+            document.getElementById('cloudMsg').innerHTML = '⏳ جاري الحفظ في السحابة...';
+            const response = await fetch(SCRIPT_URL, {
+                method: 'POST',
+                body: JSON.stringify({ action: "save", pharmacyId: 1, customers: customers }),
+                headers: { 'Content-Type': 'application/json' }
+            });
+            const result = await response.json();
+            if (result.success) {
+                document.getElementById('cloudMsg').innerHTML = '✅ تم الحفظ في السحابة بنجاح';
+                saveToLocal();
+            } else {
+                document.getElementById('cloudMsg').innerHTML = '❌ فشل الحفظ في السحابة';
+            }
+        } catch(e) {
+            document.getElementById('cloudMsg').innerHTML = '❌ خطأ في الاتصال، تم الحفظ محلياً فقط';
+            saveToLocal();
+        }
+        setTimeout(() => document.getElementById('cloudMsg').innerHTML = '', 3000);
+    }
+
+    async function loadFromCloudNow() {
+        try {
+            document.getElementById('syncStatus').innerHTML = '⏳ جاري التحميل من السحابة...';
             const response = await fetch(SCRIPT_URL, {
                 method: 'POST',
                 body: JSON.stringify({ action: "load", pharmacyId: 1 }),
                 headers: { 'Content-Type': 'application/json' }
             });
             const result = await response.json();
-            if (result.success && result.customers) customers = result.customers;
-            else customers = [];
-            renderTable();
-        } catch(e) { customers = []; renderTable(); }
+            if (result.success && result.customers && result.customers.length > 0) {
+                customers = result.customers;
+                saveToLocal();
+                renderTable();
+                document.getElementById('syncStatus').innerHTML = '✅ تم التحميل من السحابة بنجاح';
+            } else {
+                document.getElementById('syncStatus').innerHTML = '⚠️ لا توجد بيانات في السحابة، تم التحميل من المحلي';
+            }
+        } catch(e) {
+            document.getElementById('syncStatus').innerHTML = '⚠️ لا يوجد اتصال، تم التحميل من النسخة المحلية';
+            loadFromLocal();
+        }
     }
 
-    async function saveData() {
-        try {
-            await fetch(SCRIPT_URL, {
-                method: 'POST',
-                body: JSON.stringify({ action: "save", pharmacyId: 1, customers: customers }),
-                headers: { 'Content-Type': 'application/json' }
-            });
-        } catch(e) {}
+    // ========== الفلترة ==========
+    function setFilter(filter) {
+        currentFilter = filter;
+        const allBtn = document.getElementById('showAllBtn');
+        const movementBtn = document.getElementById('showMovementBtn');
+        if (filter === 'all') {
+            allBtn.style.background = "#2b8c5e";
+            allBtn.style.opacity = "1";
+            movementBtn.style.background = "#FF9800";
+            movementBtn.style.opacity = "0.6";
+        } else {
+            allBtn.style.background = "#2b8c5e";
+            allBtn.style.opacity = "0.6";
+            movementBtn.style.background = "#FF9800";
+            movementBtn.style.opacity = "1";
+        }
+        renderTable();
     }
 
-    function getFiltered() {
+    function getFilteredCustomers() {
         let filtered = [...customers];
         if (searchId) filtered = filtered.filter(c => c.id.toString().includes(searchId));
         if (searchName) filtered = filtered.filter(c => c.name.includes(searchName));
+        if (currentFilter === 'movement') {
+            filtered = filtered.filter(c => (c.debt || 0) > 0 || (c.paid || 0) > 0);
+        }
         return filtered;
     }
 
+    // ========== عرض الجدول ==========
     function renderTable() {
-        const filtered = getFiltered();
+        const filtered = getFilteredCustomers();
         if (!filtered.length) {
             document.getElementById('customersTable').innerHTML = '<div class="empty">📭 لا يوجد عملاء</div>';
             document.getElementById('stats').innerHTML = `📊 إجمالي: ${customers.length} | معروض: 0`;
@@ -130,25 +232,27 @@
         let html = `<table><thead><tr><th>#</th><th>الاسم</th><th>الجوال</th><th>الرصيد</th><th>فاتورة(+)</th><th>سداد(-)</th><th>الرصيد الجديد</th><th>إجراءات</th></tr></thead><tbody>`;
         for (let c of filtered) {
             const newTotal = (c.totalDebt || 0) + (c.debt || 0) - (c.paid || 0);
-            html += `<tr>
+            const isMovement = (c.debt || 0) > 0 || (c.paid || 0) > 0;
+            html += `<tr class="${isMovement ? 'highlight-row' : ''}">
                 <td>${c.id}</td>
                 <td><strong>${c.name}</strong></td>
                 <td><input type="text" id="phone_${c.id}" value="${c.phone || ''}" style="width:100px"></td>
                 <td><input type="number" id="balance_${c.id}" value="${c.totalDebt || 0}" step="any" style="width:75px"></td>
-                <td><input type="number" id="debt_${c.id}" value="0" step="any" style="width:65px"></td>
-                <td><input type="number" id="paid_${c.id}" value="0" step="any" style="width:65px"></td>
+                <td><input type="number" id="debt_${c.id}" value="${c.debt || 0}" step="any" style="width:65px" placeholder="+"></td>
+                <td><input type="number" id="paid_${c.id}" value="${c.paid || 0}" step="any" style="width:65px" placeholder="-"></td>
                 <td id="new_${c.id}" style="color:#2b8c5e; font-weight:bold;">${newTotal.toLocaleString()}</td>
                 <td>
                     <button onclick="updateCustomer(${c.id})">💾 حفظ</button>
                     <button class="btn-wa" onclick="sendWA(${c.id})">📱</button>
                     <button class="btn-sms" onclick="sendSMS(${c.id})">✉️</button>
-                    <button class="btn-danger" onclick="deleteCustomer(${c.id})">🗑️ حذف</button>
+                    <button class="btn-danger" onclick="deleteCustomer(${c.id})">🗑️</button>
                 </td>
-            </tr>`;
+            </table>`;
         }
         html += `</tbody>树`;
         document.getElementById('customersTable').innerHTML = html;
-        document.getElementById('stats').innerHTML = `📊 إجمالي: ${customers.length} | معروض: ${filtered.length}`;
+        document.getElementById('stats').innerHTML = `📊 إجمالي: ${customers.length} | معروض: ${filtered.length} | 🔴 حركة اليوم: ${customers.filter(c => (c.debt||0)>0 || (c.paid||0)>0).length}`;
+        
         for (let c of filtered) {
             if (document.getElementById(`debt_${c.id}`)) {
                 document.getElementById(`debt_${c.id}`).oninput = () => updateNewTotal(c.id);
@@ -176,10 +280,12 @@
             const paid = parseFloat(document.getElementById(`paid_${id}`).value) || 0;
             if (debt > 0) c.totalDebt += debt;
             if (paid > 0) c.totalDebt -= paid;
+            c.debt = 0;
+            c.paid = 0;
             document.getElementById(`debt_${id}`).value = 0;
             document.getElementById(`paid_${id}`).value = 0;
             document.getElementById(`balance_${id}`).value = c.totalDebt;
-            await saveData();
+            saveToLocal();
             renderTable();
             alert(`✅ تم تحديث ${c.name}`);
         }
@@ -188,16 +294,17 @@
     async function deleteCustomer(id) {
         if (confirm('هل أنت متأكد من حذف هذا العميل؟')) {
             customers = customers.filter(c => c.id != id);
-            await saveData();
+            saveToLocal();
             renderTable();
             alert('✅ تم الحذف');
         }
     }
 
+    // ========== الإرسال بالرسائل المعدلة ==========
     function sendWA(id) {
         const c = customers.find(c => c.id == id);
         if (c && c.phone) {
-            let msg = `السلام عليكم يا ${c.name}، رصيدك الحالي: ${(c.totalDebt || 0).toLocaleString()} ريال\n🏥 صيدلية العابد`;
+            let msg = getReminderMessage(c);
             let phone = c.phone.replace(/^0+/, '').replace(/^967/, '').replace(/[^0-9]/g, '');
             window.open(`https://wa.me/967${phone}?text=${encodeURIComponent(msg)}`, '_blank');
         } else alert('❌ رقم غير موجود');
@@ -206,7 +313,7 @@
     function sendSMS(id) {
         const c = customers.find(c => c.id == id);
         if (c && c.phone) {
-            let msg = `السلام عليكم يا ${c.name}، رصيدك: ${(c.totalDebt || 0).toLocaleString()} ريال - صيدلية العابد`;
+            let msg = getReminderMessage(c);
             let phone = c.phone.replace(/^0+/, '').replace(/^967/, '').replace(/[^0-9]/g, '');
             window.location.href = `sms:+967${phone}?body=${encodeURIComponent(msg)}`;
         } else alert('❌ رقم غير موجود');
@@ -217,7 +324,7 @@
         if (!targets.length) { alert('❌ لا توجد أرقام'); return; }
         for (let i = 0; i < targets.length; i++) {
             const c = targets[i];
-            let msg = `السلام عليكم يا ${c.name}، رصيدك الحالي: ${(c.totalDebt || 0).toLocaleString()} ريال\n🏥 صيدلية العابد`;
+            let msg = getReminderMessage(c);
             let phone = c.phone.replace(/^0+/, '').replace(/^967/, '').replace(/[^0-9]/g, '');
             window.open(`https://wa.me/967${phone}?text=${encodeURIComponent(msg)}`, '_blank');
             if (i < targets.length - 1) await new Promise(resolve => { alert(`✅ تم لـ ${c.name}\nاضغط OK للمتابعة`); resolve(); });
@@ -230,7 +337,7 @@
         if (!targets.length) { alert('❌ لا توجد أرقام'); return; }
         for (let i = 0; i < targets.length; i++) {
             const c = targets[i];
-            let msg = `السلام عليكم يا ${c.name}، رصيدك: ${(c.totalDebt || 0).toLocaleString()} ريال - صيدلية العابد`;
+            let msg = getReminderMessage(c);
             let phone = c.phone.replace(/^0+/, '').replace(/^967/, '').replace(/[^0-9]/g, '');
             window.location.href = `sms:+967${phone}?body=${encodeURIComponent(msg)}`;
             if (i < targets.length - 1) await new Promise(resolve => { alert(`✅ تم لـ ${c.name}\nاضغط OK للمتابعة`); resolve(); });
@@ -238,6 +345,7 @@
         alert('✅ تم إرسال الجميع');
     }
 
+    // ========== إدارة العملاء ==========
     async function addCustomer() {
         let name = prompt('📝 اسم العميل:');
         if (!name) return;
@@ -245,11 +353,12 @@
         if (!phone) return;
         let id = Date.now();
         customers.push({ id, name, phone: phone.replace(/[^0-9]/g, ''), totalDebt: 0, debt: 0, paid: 0 });
-        await saveData();
+        saveToLocal();
         renderTable();
         alert('✅ تم الإضافة');
     }
 
+    // ========== استيراد ==========
     async function importCustomers() {
         const file = document.getElementById('importCustomersFile').files[0];
         if (!file) { alert('❌ اختر ملف'); return; }
@@ -267,7 +376,7 @@
                     }
                 }
             }
-            await saveData();
+            saveToLocal();
             renderTable();
             alert(`✅ تم استيراد ${imported} عميل`);
         };
@@ -294,7 +403,7 @@
                     }
                 }
             }
-            await saveData();
+            saveToLocal();
             renderTable();
             alert(`✅ تم استيراد ${imported} حركة`);
         };
@@ -325,6 +434,7 @@
         renderTable();
     }
 
+    // ========== ربط الدوال ==========
     window.updateCustomer = updateCustomer;
     window.sendWA = sendWA;
     window.sendSMS = sendSMS;
@@ -337,8 +447,17 @@
     window.clearSearch = clearSearch;
     window.importCustomers = importCustomers;
     window.importDebts = importDebts;
+    window.setFilter = setFilter;
+    window.saveToCloudNow = saveToCloudNow;
+    window.loadFromCloudNow = loadFromCloudNow;
 
-    loadData();
+    // ========== بدء التشغيل ==========
+    if (!loadFromLocal()) {
+        customers = [];
+    }
+    renderTable();
+    // محاولة تحميل من السحابة في الخلفية
+    setTimeout(() => loadFromCloudNow(), 1000);
 </script>
 </body>
 </html>
