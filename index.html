@@ -374,27 +374,46 @@
     }
 
     async function updateCustomer(id) {
-        const c = customers.find(c => c.id == id);
-        if (c) {
-            c.phone = document.getElementById(`phone_${id}`).value;
-            const newDebt = parseFloat(document.getElementById(`debt_${id}`).value) || 0;
-            const newPaid = parseFloat(document.getElementById(`paid_${id}`).value) || 0;
-            const newBalance = parseFloat(document.getElementById(`balance_${id}`).value) || 0;
-            
-            if (newDebt > 0) c.debt = (c.debt || 0) + newDebt;
-            if (newPaid > 0) c.paid = (c.paid || 0) + newPaid;
-            if (newBalance !== (c.totalDebt || 0)) c.totalDebt = newBalance;
-            
-            document.getElementById(`debt_${id}`).value = 0;
-            document.getElementById(`paid_${id}`).value = 0;
-            document.getElementById(`balance_${id}`).value = c.totalDebt;
-            
+    const c = customers.find(c => c.id == id);
+
+    if (c) {
+
+        // تحديث رقم الهاتف
+        c.phone = document.getElementById(`phone_${id}`).value;
+
+        // قراءة القيم الجديدة من الحقول
+        const newDebt = parseFloat(document.getElementById(`debt_${id}`).value) || 0;
+        const newPaid = parseFloat(document.getElementById(`paid_${id}`).value) || 0;
+        const currentBalance = parseFloat(document.getElementById(`balance_${id}`).value) || 0;
+
+        // حساب الرصيد النهائي الجديد
+        const finalTotal = currentBalance + newDebt - newPaid;
+
+        // حفظ الرصيد النهائي مباشرة
+        c.totalDebt = finalTotal;
+
+        // حفظ آخر حركة فقط للرسائل
+        c.debt = newDebt;
+        c.paid = newPaid;
+
+        // حفظ البيانات
+        saveToLocal();
+
+        // إعادة تحديث الجدول
+        renderTable();
+
+        // تصفير الحركة اليومية بعد 1 ثانية
+        setTimeout(() => {
+            c.debt = 0;
+            c.paid = 0;
+
             saveToLocal();
             renderTable();
-            alert(`✅ تم حفظ تعديل العميل: ${c.name}`);
-        }
-    }
+        }, 1000);
 
+        alert(`✅ تم حفظ العميل: ${c.name}`);
+    }
+}
     async function deleteCustomer(id) {
         if (confirm('هل أنت متأكد من حذف هذا العميل؟')) {
             customers = customers.filter(c => c.id != id);
